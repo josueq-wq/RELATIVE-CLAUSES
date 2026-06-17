@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prueba Interactiva: Relative Clauses</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 10px; }
+        p.instructions { text-align: center; color: #7f8c8d; margin-bottom: 30px; }
+        
+        /* Pantallas */
+        .screen { display: none; }
+        .active { display: block; }
+
+        /* Login y Bloqueo */
+        .login-box, .pin-box {
+            max-width: 400px;
+            margin: 40px auto;
+            text-align: center;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+
+        /* Timer */
+        #timer-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #e74c3c;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+
+        /* Ejercicios */
+        .exercise {
+            background: #f9f9f9;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 5px solid #3498db;
+            border-radius: 4px;
+        }
+        .sentences { font-weight: bold; margin-bottom: 10px; color: #34495e; }
+        .input-box {
+            width: 100%; padding: 10px; box-sizing: border-box;
+            border: 2px solid #bdc3c7; border-radius: 4px; font-size: 16px;
+        }
+        .input-box:focus { border-color: #3498db; outline: none; }
+        .feedback { margin-top: 8px; font-weight: bold; display: none; padding: 8px; border-radius: 4px; }
+        .correct { color: #27ae60; background-color: #e8f8f5; border-left: 4px solid #27ae60; }
+        .incorrect { color: #c0392b; background-color: #fdedec; border-left: 4px solid #c0392b; }
+        
+        /* Botones */
+        .actions { text-align: center; margin-top: 30px; }
+        button {
+            background-color: #3498db; color: white; border: none;
+            padding: 12px 25px; font-size: 16px; border-radius: 4px;
+            cursor: pointer; margin: 5px; transition: background 0.3s;
+        }
+        button:hover { background-color: #2980b9; }
+        
+        /* Tabla de registros */
+        .history-section { margin-top: 40px; border-top: 2px solid #eee; padding-top: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+        th { background-color: #34495e; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Quiz: Relative Clauses</h1>
+
+    <div id="screen-pin" class="screen">
+        <div class="pin-box">
+            <h3>Examen Bloqueado</h3>
+            <p>Se requiere el PIN del docente para desbloquear o reiniciar la prueba.</p>
+            <input type="password" id="pin-input" class="input-box" placeholder="Ingresa el PIN"><br><br>
+            <button onclick="verifyPin()">Desbloquear Sistema</button>
+        </div>
+    </div>
+
+    <div id="screen-login" class="screen">
+        <div class="login-box">
+            <h3>Registro del Estudiante</h3>
+            <input type="text" id="student-name" class="input-box" placeholder="Escribe tu nombre completo"><br><br>
+            <button onclick="startQuiz()">Comenzar Examen</button>
+        </div>
+    </div>
+
+    <div id="screen-quiz" class="screen">
+        <div id="timer-container">Tiempo: <span id="timer">30:00</span></div>
+        <p class="instructions">Combina las oraciones principales (Main) y extras utilizando pronombres relativos adecuados.</p>
+        
+        <div id="quiz-container"></div>
+        
+        <div id="quiz-results-summary" style="text-align: center; padding: 20px; display: none;">
+            <h2 style="color: #2c3e50; margin-bottom: 5px;">¡Prueba Evaluada!</h2>
+            <p id="final-score" style="font-size: 26px; font-weight: bold; color: #27ae60; margin-top: 5px;"></p>
+            <p style="color: #7f8c8d;">Revisa tus respuestas correctas e incorrectas arriba. El sistema se encuentra bloqueado para nuevos intentos.</p>
+            <button onclick="showPinScreen()" style="background-color: #e67e22;">Panel del Profesor (Desbloquear)</button>
+        </div>
+
+        <div class="actions" id="quiz-submit-zone">
+            <button onclick="checkAnswers()">Finalizar y Entregar</button>
+        </div>
+    </div>
+
+    <div class="history-section" id="history-section">
+        <h3>Historial de Calificaciones (Docente)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha / Hora</th>
+                    <th>Estudiante</th>
+                    <th>Calificación</th>
+                </tr>
+            </thead>
+            <tbody id="history-table-body">
+            </tbody>
+        </table>
+        <br>
+        <button onclick="clearHistory()" style="background-color: #c0392b; padding: 6px 12px; font-size: 12px;">Borrar Historial</button>
+    </div>
+</div>
+
+<script>
+// Banco de ejercicios completo (16)
+const totalExercises = [
+    { main: "The teacher is very knowledgeable.", extra: "The teacher helped me pass my exams.", answers: ["The teacher who helped me pass my exams is very knowledgeable.", "The teacher that helped me pass my exams is very knowledgeable."] },
+    { main: "The manager is on vacation.", extra: "The manager handles our department.", answers: ["The manager who handles our department is on vacation.", "The manager that handles our department is on vacation."] },
+    { main: "The girl called her mother.", extra: "The girl’s mother was waiting in the car.", answers: ["The girl whose mother was waiting in the car called her mother."] },
+    { main: "The hotel is near the beach.", extra: "Its pool is open all year round.", answers: ["The hotel whose pool is open all year round is near the beach."] },
+    { main: "That was the day.", extra: "I decided to move abroad on that day.", answers: ["That was the day when I decided to move abroad.", "That was the day on which I decided to move abroad.", "That was the day that I decided to move abroad."] },
+    { main: "The recipe was delicious.", extra: "You shared the recipe with me.", answers: ["The recipe which you shared with me was delicious.", "The recipe that you shared with me was delicious.", "The recipe you shared with me was delicious."] },
+    { main: "I saw a friend.", extra: "You introduced me to the friend last year.", answers: ["I saw a friend whom you introduced me to last year.", "I saw a friend who you introduced me to last year.", "I saw a friend that you introduced me to last year.", "I saw a friend you introduced me to last year."] },
+    { main: "My brother goes to a school.", extra: "The school has an excellent science program.", answers: ["My brother goes to a school which has an excellent science program.", "My brother goes to a school that has an excellent science program."] },
+    { main: "He still remembers the year.", extra: "He graduated from college that year.", answers: ["He still remembers the year when he graduated from college.", "He still remembers the year that he graduated from college.", "He still remembers the year in which he graduated from college."] },
+    { main: "The movie won an award.", extra: "The movie was about space exploration.", answers: ["The movie which was about space exploration won an award.", "The movie that was about space exploration won an award."] },
+    { main: "I have a friend.", extra: "I talk to the friend every day.", answers: ["I have a friend whom I talk to every day.", "I have a friend who I talk to every day.", "I have a friend that I talk to every day.", "I have a friend I talk to every day."] },
+    { main: "This is the place.", extra: "We had our first date at this place.", answers: ["This is the place where we had our first date.", "This is the place at which we had our first date.", "This is the place that we had our first date on."] },
+    { main: "The man was speaking to my sister.", extra: "She had never met the man before.", answers: ["The man whom she had never met before was speaking to my sister.", "The man who she had never met before was speaking to my sister.", "The man that she had never met before was speaking to my sister.", "The man she had never met before was speaking to my sister."] },
+    { main: "I bought a new laptop.", extra: "The laptop has a lot of storage.", answers: ["I bought a new laptop which has a lot of storage.", "I bought a new laptop that has a lot of storage."] },
+    { main: "The car is electric.", extra: "I bought the car last month.", answers: ["The car which I bought last month is electric.", "The car that I bought last month is electric.", "The car I bought last month is electric."] },
+    { main: "The book was helpful.", extra: "My professor recommended the book.", answers: ["The book which my professor recommended was helpful.", "The book that my professor recommended was helpful.", "The book my professor recommended was helpful."] }
+];
+
+const CORRECT_PIN = "1990";
+let selectedExercises = [];
+let currentStudent = "";
+let timerInterval;
+let timeLeft = 1800; // Cambiado a 30 minutos (30 * 60 = 1800 segundos)
+let isQuizRunning = false;
+
+function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(screenId).classList.add('active');
+}
+
+window.onload = function() {
+    updateHistoryTable();
+    if (localStorage.getItem("quiz_locked") === "true") {
+        showScreen("screen-pin");
+    } else {
+        showScreen("screen-login");
+    }
+};
+
+function startQuiz() {
+    const nameInput = document.getElementById("student-name").value.trim();
+    if (!nameInput) {
+        alert("Por favor, ingresa tu nombre para poder comenzar.");
+        return;
+    }
+    currentStudent = nameInput;
+    isQuizRunning = true;
+    
+    document.getElementById("quiz-results-summary").style.display = "none";
+    document.getElementById("quiz-submit-zone").style.display = "block";
+    document.getElementById("timer-container").style.display = "block";
+
+    // Seleccionar 10 preguntas aleatorias
+    let shuffled = [...totalExercises];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    selectedExercises = shuffled.slice(0, 10);
+    
+    // Renderizar preguntas
+    const container = document.getElementById("quiz-container");
+    container.innerHTML = "";
+    selectedExercises.forEach((ex, index) => {
+        const div = document.createElement("div");
+        div.className = "exercise";
+        div.innerHTML = `
+            <div class="sentences">
+                ${index + 1}. <br>
+                <strong>Main:</strong> ${ex.main}<br>
+                <strong>Extra:</strong> ${ex.extra}
+            </div>
+            <input type="text" class="input-box" id="input-${index}" placeholder="Escribe la oración combinada aquí..." autocomplete="off">
+            <div class="feedback" id="feedback-${index}"></div>
+        `;
+        container.appendChild(div);
+    });
+
+    // Iniciar Temporizador a 30 minutos justo al empezar
+    timeLeft = 1800; 
+    updateTimerDisplay();
+    timerInterval = setInterval(() => {
+        timeLeft--;
+        updateTimerDisplay();
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            alert("¡Tiempo agotado! Tu prueba se enviará automáticamente.");
+            checkAnswers();
+        }
+    }, 1000);
+
+    showScreen("screen-quiz");
+}
+
+function updateTimerDisplay() {
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+    document.getElementById("timer").textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+// Lógica de detección de copia / cambio de pestaña
+function handleStudentExit() {
+    if (isQuizRunning) {
+        isQuizRunning = false;
+        clearInterval(timerInterval);
+        alert("¡EXAMEN BLOQUEADO! Has salido de la pantalla de la prueba o cambiado de pestaña. Tu examen se calificará automáticamente con lo que hayas respondido.");
+        checkAnswers();
+    }
+}
+
+// Detectar cambio de pestaña o minimización
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+        handleStudentExit();
+    }
+});
+
+// Detectar pérdida de foco (clic fuera del navegador o apertura de otra ventana)
+window.addEventListener("blur", () => {
+    handleStudentExit();
+});
+
+function checkAnswers() {
+    clearInterval(timerInterval);
+    isQuizRunning = false;
+    document.getElementById("timer-container").style.display = "none";
+    let score = 0;
+    
+    selectedExercises.forEach((ex, index) => {
+        const inputEl = document.getElementById(`input-${index}`);
+        const feedbackDiv = document.getElementById(`feedback-${index}`);
+        const userInput = inputEl.value.trim().replace(/\s+/g, ' ');
+        
+        inputEl.disabled = true; 
+        let cleanInput = userInput.replace(/\.$/, "").toLowerCase();
+        let isCorrect = ex.answers.some(ans => ans.replace(/\.$/, "").toLowerCase() === cleanInput);
+        
+        feedbackDiv.style.display = "block";
+        if (isCorrect) {
+            feedbackDiv.innerHTML = `✓ <strong>¡Correcto!</strong>`;
+            feedbackDiv.className = "feedback correct";
+            score++;
+        } else {
+            let opcionesHtml = ex.answers.map(ans => `<li>${ans}</li>`).join('');
+            feedbackDiv.innerHTML = `✗ <strong>Incorrecto.</strong> Respuestas válidas esperadas:<br><ul style="margin:5px 0; padding-left:20px;">${opcionesHtml}</ul>`;
+            feedbackDiv.className = "feedback incorrect";
+        }
+    });
+
+    document.getElementById("final-score").textContent = `${currentStudent}, tu nota es: ${score} / 10`;
+    document.getElementById("quiz-results-summary").style.display = "block";
+    document.getElementById("quiz-submit-zone").style.display = "none";
+    
+    saveResult(currentStudent, score);
+    localStorage.setItem("quiz_locked", "true");
+}
+
+function saveResult(name, score) {
+    let history = JSON.parse(localStorage.getItem("quiz_history")) || [];
+    const now = new Date();
+    const timeString = `${now.toLocaleDateString()} ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+    
+    history.push({ date: timeString, student: name, grade: `${score}/10` });
+    localStorage.setItem("quiz_history", JSON.stringify(history));
+    updateHistoryTable();
+
+    const ACCESS_KEY = "9a7a0264-dffe-4099-9a98-6038638eaf61"; 
+
+    if (ACCESS_KEY !== "TU_ACCESS_KEY_AQUI") {
+        fetch("https://api.web3forms.com/submit", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify({
+                access_key: ACCESS_KEY,
+                subject: `Quiz Calificado: ${name} - Nota: ${score}/10`,
+                from_name: "Sistema de Exámenes",
+                Estudiante: name,
+                Calificacion: `${score} / 10`,
+                Fecha_Hora: timeString
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("Notificación por correo procesada correctamente.", data);
+        })
+        .catch(error => {
+            console.error("Error al enviar la notificación por correo:", error);
+        });
+    } else {
+        console.warn("El correo no fue enviado porque no has configurado tu ACCESS_KEY de Web3Forms.");
+    }
+}
+
+function updateHistoryTable() {
+    let history = JSON.parse(localStorage.getItem("quiz_history")) || [];
+    const tbody = document.getElementById("history-table-body");
+    tbody.innerHTML = "";
+    
+    if (history.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#999;">No hay registros aún.</td></tr>`;
+        return;
+    }
+
+    history.forEach(item => {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${item.date}</td><td>${item.student}</td><td><strong>${item.grade}</strong></td>`;
+        tbody.appendChild(row);
+    });
+}
+
+function showPinScreen() {
+    showScreen("screen-pin");
+}
+
+function verifyPin() {
+    const pinVal = document.getElementById("pin-input").value;
+    if (pinVal === CORRECT_PIN) {
+        localStorage.setItem("quiz_locked", "false");
+        document.getElementById("pin-input").value = "";
+        document.getElementById("student-name").value = "";
+        showScreen("screen-login");
+    } else {
+        alert("PIN Incorrecto. Acceso denegado.");
+    }
+}
+
+function clearHistory() {
+    const pinCheck = prompt("Ingresa el PIN de administrador para borrar el historial:");
+    if (pinCheck === CORRECT_PIN) {
+        localStorage.removeItem("quiz_history");
+        updateHistoryTable();
+    } else {
+        alert("PIN incorrecto.");
+    }
+}
+</script>
+
+</body>
+</html>
