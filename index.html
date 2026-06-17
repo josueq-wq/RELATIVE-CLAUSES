@@ -96,7 +96,7 @@
     <div id="screen-pin" class="screen">
         <div class="pin-box">
             <h3>Examen Bloqueado</h3>
-            <p>Se requiere el PIN del docente para desbloquear o reiniciar la prueba.</p>
+            <p id="pin-message">Se requiere el PIN del docente para desbloquear o reiniciar la prueba.</p>
             <input type="password" id="pin-input" class="input-box" placeholder="Ingresa el PIN"><br><br>
             <button onclick="verifyPin()">Desbloquear Sistema</button>
         </div>
@@ -147,7 +147,6 @@
 </div>
 
 <script>
-// Banco de ejercicios completo (16)
 const totalExercises = [
     { main: "The teacher is very knowledgeable.", extra: "The teacher helped me pass my exams.", answers: ["The teacher who helped me pass my exams is very knowledgeable.", "The teacher that helped me pass my exams is very knowledgeable."] },
     { main: "The manager is on vacation.", extra: "The manager handles our department.", answers: ["The manager who handles our department is on vacation.", "The manager that handles our department is on vacation."] },
@@ -171,8 +170,12 @@ const CORRECT_PIN = "1990";
 let selectedExercises = [];
 let currentStudent = "";
 let timerInterval;
-let timeLeft = 1800; // Cambiado a 30 minutos (30 * 60 = 1800 segundos)
+let timeLeft = 1800; // 30 minutos
 let isQuizRunning = false;
+
+// Variables para almacenar el tamaño inicial de la pantalla del examen
+let initialWidth = 0;
+let initialHeight = 0;
 
 function showScreen(screenId) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -181,12 +184,27 @@ function showScreen(screenId) {
 
 window.onload = function() {
     updateHistoryTable();
+    
     if (localStorage.getItem("quiz_locked") === "true") {
+        document.getElementById("pin-message").textContent = "Se requiere el PIN del docente para desbloquear o reiniciar la prueba.";
+        showScreen("screen-pin");
+    } else if (sessionStorage.getItem("quiz_in_progress") === "true") {
+        localStorage.setItem("quiz_locked", "true");
+        saveResult("Intento de Fraude (Refresco de página)", 0);
+        document.getElementById("pin-message").textContent = "¡SISTEMA BLOQUEADO! Se detectó una recarga de página durante el examen. El intento se registró con nota 0/10.";
         showScreen("screen-pin");
     } else {
         showScreen("screen-login");
     }
 };
+
+window.addEventListener("beforeunload", function (e) {
+    if (isQuizRunning) {
+        const message = "Si sales o refrescas la página, perderás el examen y el sistema se bloqueará.";
+        e.returnValue = message;
+        return message;
+    }
+});
 
 function startQuiz() {
     const nameInput = document.getElementById("student-name").value.trim();
@@ -197,11 +215,16 @@ function startQuiz() {
     currentStudent = nameInput;
     isQuizRunning = true;
     
+    // Almacenar las dimensiones exactas de la pantalla justo al iniciar la prueba
+    initialWidth = window.innerWidth;
+    initialHeight = window.innerHeight;
+    
+    sessionStorage.setItem("quiz_in_progress", "true");
+    
     document.getElementById("quiz-results-summary").style.display = "none";
     document.getElementById("quiz-submit-zone").style.display = "block";
     document.getElementById("timer-container").style.display = "block";
 
-    // Seleccionar 10 preguntas aleatorias
     let shuffled = [...totalExercises];
     for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -209,7 +232,6 @@ function startQuiz() {
     }
     selectedExercises = shuffled.slice(0, 10);
     
-    // Renderizar preguntas
     const container = document.getElementById("quiz-container");
     container.innerHTML = "";
     selectedExercises.forEach((ex, index) => {
@@ -227,7 +249,6 @@ function startQuiz() {
         container.appendChild(div);
     });
 
-    // Iniciar Temporizador a 30 minutos justo al empezar
     timeLeft = 1800; 
     updateTimerDisplay();
     timerInterval = setInterval(() => {
@@ -249,52 +270,63 @@ function updateTimerDisplay() {
     document.getElementById("timer").textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
 }
 
-// Lógica de detección de copia / cambio de pestaña
-function handleStudentExit() {
+// Función centralizada para manejar salidas e infracciones
+function handleStudentExit(reason = "Has salido de la pantalla de la prueba o cambiado de pestaña.") {
     if (isQuizRunning) {
         isQuizRunning = false;
         clearInterval(timerInterval);
-        alert("¡EXAMEN BLOQUEADO! Has salido de la pantalla de la prueba o cambiado de pestaña. Tu examen se calificará automáticamente con lo que hayas respondido.");
+        alert(`¡EXAMEN BLOQUEADO! ${reason} Tu examen se calificará automáticamente.`);
         checkAnswers();
     }
 }
 
 // Detectar cambio de pestaña o minimización
 document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-        handleStudentExit();
-    }
+    if (document.hidden) { handleStudentExit(); }
 });
 
-// Detectar pérdida de foco (clic fuera del navegador o apertura de otra ventana)
+// Detectar pérdida de foco (clic fuera del navegador)
 window.addEventListener("blur", () => {
     handleStudentExit();
+});
+
+// DETECTAR BOTÓN MAXIMIZAR / RESTAURAR / REDIMENSIONAR
+window.addEventListener("resize", () => {
+    if (isQuizRunning) {
+        // Si el tamaño de la ventana cambia respecto al tamaño original con el que empezó, se bloquea
+        if (window.innerWidth !== initialWidth || window.innerHeight !== initialHeight) {
+            handleStudentExit("Se detectó una alteración en el tamaño de la ventana (Maximizar / Restaurar / Dividir pantalla).");
+        }
+    }
 });
 
 function checkAnswers() {
     clearInterval(timerInterval);
     isQuizRunning = false;
+    sessionStorage.removeItem("quiz_in_progress"); 
     document.getElementById("timer-container").style.display = "none";
     let score = 0;
     
     selectedExercises.forEach((ex, index) => {
         const inputEl = document.getElementById(`input-${index}`);
         const feedbackDiv = document.getElementById(`feedback-${index}`);
-        const userInput = inputEl.value.trim().replace(/\s+/g, ' ');
         
-        inputEl.disabled = true; 
-        let cleanInput = userInput.replace(/\.$/, "").toLowerCase();
-        let isCorrect = ex.answers.some(ans => ans.replace(/\.$/, "").toLowerCase() === cleanInput);
-        
-        feedbackDiv.style.display = "block";
-        if (isCorrect) {
-            feedbackDiv.innerHTML = `✓ <strong>¡Correcto!</strong>`;
-            feedbackDiv.className = "feedback correct";
-            score++;
-        } else {
-            let opcionesHtml = ex.answers.map(ans => `<li>${ans}</li>`).join('');
-            feedbackDiv.innerHTML = `✗ <strong>Incorrecto.</strong> Respuestas válidas esperadas:<br><ul style="margin:5px 0; padding-left:20px;">${opcionesHtml}</ul>`;
-            feedbackDiv.className = "feedback incorrect";
+        if(inputEl) {
+            const userInput = inputEl.value.trim().replace(/\s+/g, ' ');
+            inputEl.disabled = true; 
+            let cleanInput = userInput.replace(/\.$/, "").toLowerCase();
+            let isCorrect = ex.answers.some(ans => ans.replace(/\.$/, "").toLowerCase() === cleanInput);
+            
+            feedbackDiv.style.display = "block";
+            if (isCorrect) {
+                feedbackDiv.innerHTML = `✓ <strong>¡Correcto!</strong>`;
+                feedbackDiv.className = "feedback correct";
+                score++;
+            } else {
+                let opcionesHtml = ex.answers.map(ans => `<li>${ans}</li>`).join('');
+                feedbackDiv.innerHTML = `✗ <strong>Incorrecto.</strong> Respuestas válidas esperadas:<br><ul style="margin:5px 0; padding-left:20px;">${opcionesHtml}</ul>`;
+                feedbackDiv.className = "feedback incorrect";
+            }
         }
     });
 
@@ -370,6 +402,7 @@ function verifyPin() {
     const pinVal = document.getElementById("pin-input").value;
     if (pinVal === CORRECT_PIN) {
         localStorage.setItem("quiz_locked", "false");
+        sessionStorage.removeItem("quiz_in_progress"); 
         document.getElementById("pin-input").value = "";
         document.getElementById("student-name").value = "";
         showScreen("screen-login");
