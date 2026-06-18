@@ -173,11 +173,10 @@ let timerInterval;
 let timeLeft = 1800; // 30 minutos
 let isQuizRunning = false;
 
-// Variables de tamaño inicial
+// Variables para tamaño de pantalla inicial
 let initialWidth = 0;
 let initialHeight = 0;
 
-// Función para comprobar si es un dispositivo móvil (celular o tablet)
 function isMobileDevice() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
@@ -190,10 +189,12 @@ function showScreen(screenId) {
 window.onload = function() {
     updateHistoryTable();
     
+    // CONTROL DE REFRESCO / RECARGA DE PÁGINA
     if (localStorage.getItem("quiz_locked") === "true") {
         document.getElementById("pin-message").textContent = "Se requiere el PIN del docente para desbloquear o reiniciar la prueba.";
         showScreen("screen-pin");
     } else if (sessionStorage.getItem("quiz_in_progress") === "true") {
+        // El usuario recargó la página mientras hacía la prueba
         localStorage.setItem("quiz_locked", "true");
         saveResult("Intento de Fraude (Refresco de página)", 0);
         document.getElementById("pin-message").textContent = "¡SISTEMA BLOQUEADO! Se detectó una recarga de página durante el examen. El intento se registró con nota 0/10.";
@@ -203,6 +204,7 @@ window.onload = function() {
     }
 };
 
+// Cuadro de confirmación antes de refrescar o cerrar
 window.addEventListener("beforeunload", function (e) {
     if (isQuizRunning) {
         const message = "Si sales o refrescas la página, perderás el examen y el sistema se bloqueará.";
@@ -220,10 +222,11 @@ function startQuiz() {
     currentStudent = nameInput;
     isQuizRunning = true;
     
-    // Almacenar el tamaño con el que inicia la prueba
+    // Almacenar dimensiones iniciales
     initialWidth = window.innerWidth;
     initialHeight = window.innerHeight;
     
+    // Activar bandera persistente al refresco
     sessionStorage.setItem("quiz_in_progress", "true");
     
     document.getElementById("quiz-results-summary").style.display = "none";
@@ -284,25 +287,21 @@ function handleStudentExit(reason = "Has salido de la pantalla de la prueba o ca
     }
 }
 
-// Detectar cambio de pestaña o minimización (Aplica para PC y Móviles)
+// Detectar cambio de pestaña o minimización
 document.addEventListener("visibilitychange", () => {
     if (document.hidden) { handleStudentExit(); }
 });
 
-// Detectar pérdida de foco / salir de ventana / abrir barra de notificaciones (Aplica para PC y Móviles)
+// Detectar pérdida de foco (clic fuera del navegador)
 window.addEventListener("blur", () => {
     handleStudentExit();
 });
 
-// DETECTAR REDIMENSIÓN / BOTÓN MAXIMIZAR
+// Detectar maximizar / restaurar ventana
 window.addEventListener("resize", () => {
     if (isQuizRunning) {
-        // REGLA CRÍTICA: Si es un dispositivo móvil, SE IGNORA este evento de resize para evitar bloqueos por culpa del teclado virtual.
-        if (isMobileDevice()) {
-            return; 
-        }
+        if (isMobileDevice()) { return; } // Ignorar en móvil para evitar fallos por el teclado
         
-        // Si es una computadora, valida rigurosamente los cambios de tamaño de ventana
         if (window.innerWidth !== initialWidth || window.innerHeight !== initialHeight) {
             handleStudentExit("Se detectó una alteración en el tamaño de la ventana (Maximizar / Restaurar / Dividir pantalla).");
         }
@@ -312,7 +311,7 @@ window.addEventListener("resize", () => {
 function checkAnswers() {
     clearInterval(timerInterval);
     isQuizRunning = false;
-    sessionStorage.removeItem("quiz_in_progress"); 
+    sessionStorage.removeItem("quiz_in_progress"); // Eliminar bandera ya que terminó legítimamente
     document.getElementById("timer-container").style.display = "none";
     let score = 0;
     
